@@ -125,7 +125,7 @@ class ModalSwarmCoordinator(SwarmCoordinator):
                 raise http_err
 
     def submit_reward(self, round_num, stage_num, reward, peer_id):
-        max_retries = 5
+        max_retries = 6
         retry_delay = 4.0  # секунды между попытками
         
         for attempt in range(1, max_retries + 1):
