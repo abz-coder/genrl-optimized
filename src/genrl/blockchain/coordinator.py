@@ -1,4 +1,5 @@
 import json
+import random
 from abc import ABC
 import time
 
@@ -125,8 +126,9 @@ class ModalSwarmCoordinator(SwarmCoordinator):
                 raise http_err
 
     def submit_reward(self, round_num, stage_num, reward, peer_id):
-        max_retries = 6
-        retry_delay = 4.0  # секунды между попытками
+        max_retries = 10
+        min_delay = 10.0  # минимальная задержка в секундах
+        max_delay = 25.0  # максимальная задержка в секундах
         
         for attempt in range(1, max_retries + 1):
             try:
@@ -171,7 +173,8 @@ class ModalSwarmCoordinator(SwarmCoordinator):
                         
                 elif status_code == 500:
                     if attempt < max_retries:
-                        logger.warning(f"⚠️  Submit reward failed with 500 Internal Server Error (attempt {attempt}/{max_retries}). Retrying in {retry_delay}s...")
+                        retry_delay = random.uniform(min_delay, max_delay)
+                        logger.warning(f"⚠️  Submit reward failed with 500 Internal Server Error (attempt {attempt}/{max_retries}). Retrying in {retry_delay:.1f}s...")
                         time.sleep(retry_delay)
                         continue
                     else:
@@ -187,8 +190,9 @@ class ModalSwarmCoordinator(SwarmCoordinator):
                 return
 
     def submit_winners(self, round_num, winners, peer_id):
-        max_retries = 5
-        retry_delay = 2.0  # секунды между попытками
+        max_retries = 10
+        min_delay = 10.0  # минимальная задержка в секундах
+        max_delay = 25.0  # максимальная задержка в секундах
         
         for attempt in range(1, max_retries + 1):
             try:
@@ -228,7 +232,8 @@ class ModalSwarmCoordinator(SwarmCoordinator):
                         
                 elif status_code == 500:
                     if attempt < max_retries:
-                        logger.warning(f"⚠️  Submit winners failed with 500 Internal Server Error (attempt {attempt}/{max_retries}). Retrying in {retry_delay}s...")
+                        retry_delay = random.uniform(min_delay, max_delay)
+                        logger.warning(f"⚠️  Submit winners failed with 500 Internal Server Error (attempt {attempt}/{max_retries}). Retrying in {retry_delay:.1f}s...")
                         time.sleep(retry_delay)
                         continue
                     else:
