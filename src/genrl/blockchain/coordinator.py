@@ -1,7 +1,5 @@
 import json
-import random
 from abc import ABC
-import time
 
 import requests
 
@@ -115,7 +113,7 @@ class ModalSwarmCoordinator(SwarmCoordinator):
                 err_data = http_err.response.json()
                 err_name = err_data["error"]
                 if err_name != "PeerIdAlreadyRegistered":
-                    logger.info(f"Registering peer failed with: {err_name}")
+                    logger.info(f"Registering peer failed with: f{err_name}")
                     raise
                 logger.info(f"Peer ID [{peer_id}] is already registered! Continuing.")
 
@@ -126,124 +124,37 @@ class ModalSwarmCoordinator(SwarmCoordinator):
                 raise http_err
 
     def submit_reward(self, round_num, stage_num, reward, peer_id):
-        max_retries = 10
-        min_delay = 10.0  # минимальная задержка в секундах
-        max_delay = 25.0  # максимальная задержка в секундах
-        
-        for attempt in range(1, max_retries + 1):
-            try:
-                send_via_api(
-                    self.org_id,
-                    self.modal_proxy_url,
-                    "submit-reward",
-                    {
-                        "roundNumber": round_num,
-                        "stageNumber": stage_num,
-                        "reward": reward,
-                        "peerId": peer_id,
-                    },
-                )
-                logger.info(f"✅ Successfully submitted reward {reward} for round {round_num}")
-                return  # Успешно отправлено, выходим
-                
-            except requests.exceptions.HTTPError as e:
-                if e.response is None:
-                    logger.error(f"❌ Submit reward failed: No response received")
-                    raise
-                
-                status_code = e.response.status_code
-                
-                if status_code == 400:
-                    try:
-                        err_data = e.response.json()
-                        err_name = err_data.get("error", "Unknown400Error")
-                        
-                        if err_name in ["RewardAlreadySubmitted", "DuplicateReward"]:
-                            logger.info(f"⚠️  Reward already submitted for round {round_num}. Continuing.")
-                            return
-                        else:
-                            logger.warning(f"⚠️  Submit reward failed with 400 error: {err_name}")
-                            logger.info(f"📊 Request data: round={round_num}, stage={stage_num}, reward={reward}, peer={peer_id}")
-                            return
-                            
-                    except json.JSONDecodeError:
-                        logger.warning(f"⚠️  Submit reward failed with 400 Bad Request (could not parse error details)")
-                        logger.info(f"📊 Request data: round={round_num}, stage={stage_num}, reward={reward}, peer={peer_id}")
-                        return
-                        
-                elif status_code == 500:
-                    if attempt < max_retries:
-                        retry_delay = random.uniform(min_delay, max_delay)
-                        logger.warning(f"⚠️  Submit reward failed with 500 Internal Server Error (attempt {attempt}/{max_retries}). Retrying in {retry_delay:.1f}s...")
-                        time.sleep(retry_delay)
-                        continue
-                    else:
-                        logger.error(f"❌ Submit reward failed with 500 Internal Server Error after {max_retries} attempts. Skipping.")
-                        return
-                else:
-                    logger.error(f"❌ Submit reward failed with HTTP {status_code}: {e}")
-                    raise
-                    
-            except requests.exceptions.RequestException as e:
-                logger.error(f"❌ Submit reward failed with network error: {e}")
-                logger.info("🔄 Continuing execution despite network error")
-                return
+        try:
+            send_via_api(
+                self.org_id,
+                self.modal_proxy_url,
+                "submit-reward",
+                {
+                    "roundNumber": round_num,
+                    "stageNumber": stage_num,
+                    "reward": reward,
+                    "peerId": peer_id,
+                },
+            )
+            logger.info(f"✅ Successfully submitted reward {reward} for round {round_num}")
+        except requests.exceptions.HTTPError as e:
+            if e.response is None or e.response.status_code != 500:
+                raise
+
+            logger.debug("Unknown error calling submit_reward endpoint! Continuing.")
+            # logger.info("Reward already submitted for this round/stage! Continuing.")
 
     def submit_winners(self, round_num, winners, peer_id):
-        max_retries = 10
-        min_delay = 10.0  # минимальная задержка в секундах
-        max_delay = 25.0  # максимальная задержка в секундах
-        
-        for attempt in range(1, max_retries + 1):
-            try:
-                send_via_api(
-                    self.org_id,
-                    self.modal_proxy_url,
-                    "submit-winner",
-                    {"roundNumber": round_num, "winners": winners, "peerId": peer_id},
-                )
-                logger.info(f"✅ Successfully submitted winners {winners} for round {round_num}")
-                return  # Успешно отправлено, выходим
-                
-            except requests.exceptions.HTTPError as e:
-                if e.response is None:
-                    logger.error(f"❌ Submit winners failed: No response received")
-                    raise
-                
-                status_code = e.response.status_code
-                
-                if status_code == 400:
-                    try:
-                        err_data = e.response.json()
-                        err_name = err_data.get("error", "Unknown400Error")
-                        
-                        if err_name in ["WinnersAlreadySubmitted", "DuplicateWinners"]:
-                            logger.info(f"⚠️  Winners already submitted for round {round_num}. Continuing.")
-                            return
-                        else:
-                            logger.warning(f"⚠️  Submit winners failed with 400 error: {err_name}")
-                            logger.info(f"📊 Request data: round={round_num}, winners={winners}, peer={peer_id}")
-                            return
-                            
-                    except json.JSONDecodeError:
-                        logger.warning(f"⚠️  Submit winners failed with 400 Bad Request (could not parse error details)")
-                        logger.info(f"📊 Request data: round={round_num}, winners={winners}, peer={peer_id}")
-                        return
-                        
-                elif status_code == 500:
-                    if attempt < max_retries:
-                        retry_delay = random.uniform(min_delay, max_delay)
-                        logger.warning(f"⚠️  Submit winners failed with 500 Internal Server Error (attempt {attempt}/{max_retries}). Retrying in {retry_delay:.1f}s...")
-                        time.sleep(retry_delay)
-                        continue
-                    else:
-                        logger.error(f"❌ Submit winners failed with 500 Internal Server Error after {max_retries} attempts. Skipping.")
-                        return
-                else:
-                    logger.error(f"❌ Submit winners failed with HTTP {status_code}: {e}")
-                    raise
-                    
-            except requests.exceptions.RequestException as e:
-                logger.error(f"❌ Submit winners failed with network error: {e}")
-                logger.info("🔄 Continuing execution despite network error")
-                return
+        try:
+            send_via_api(
+                self.org_id,
+                self.modal_proxy_url,
+                "submit-winner",
+                {"roundNumber": round_num, "winners": winners, "peerId": peer_id},
+            )
+            logger.info(f"✅ Successfully submitted winners {winners} for round {round_num}")
+        except requests.exceptions.HTTPError as e:
+            if e.response is None or e.response.status_code != 500:
+                raise
+
+            logger.debug("Unknown error calling submit-winner endpoint! Continuing.")
